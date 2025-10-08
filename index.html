@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trendy Rammy Proxy</title>
+    <style>
+        .hidden { display: none; }
+        .loading { color: #666; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="loading" class="loading">Loading content...</div>
+        <div id="content" class="hidden"></div>
+        <div id="error" class="hidden"></div>
+    </div>
+
+    <script>
+        class VPSProxy {
+            constructor(baseUrl = 'http://206.189.112.66') {
+                this.baseUrl = baseUrl;
+            }
+
+            async fetchFromVPS(endpoint = '', options = {}) {
+                try {
+                    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                        method: options.method || 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...options.headers
+                        },
+                        body: options.body ? JSON.stringify(options.body) : null
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    return await response.text();
+                } catch (error) {
+                    console.error('Proxy fetch error:', error);
+                    throw error;
+                }
+            }
+
+            async loadPage() {
+                const loading = document.getElementById('loading');
+                const content = document.getElementById('content');
+                const error = document.getElementById('error');
+
+                try {
+                    const htmlContent = await this.fetchFromVPS('/');
+                    
+                    loading.classList.add('hidden');
+                    content.innerHTML = htmlContent;
+                    content.classList.remove('hidden');
+                    
+                    // Re-initialize any scripts from the loaded content
+                    this.executeScripts(content);
+                    
+                } catch (err) {
+                    loading.classList.add('hidden');
+                    error.innerHTML = `Failed to load content: ${err.message}`;
+                    error.classList.remove('hidden');
+                }
+            }
+
+            executeScripts(container) {
+                const scripts = container.getElementsByTagName('script');
+                for (let script of scripts) {
+                    const newScript = document.createElement('script');
+                    if (script.src) {
+                        newScript.src = script.src;
+                    } else {
+                        newScript.textContent = script.textContent;
+                    }
+                    document.head.appendChild(newScript);
+                }
+            }
+        }
+
+        // Initialize proxy when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const proxy = new VPSProxy();
+            proxy.loadPage();
+        });
+    </script>
+</body>
+</html>
